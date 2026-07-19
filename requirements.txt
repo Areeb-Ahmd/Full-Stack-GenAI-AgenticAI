@@ -30,3 +30,6 @@ beautifulsoup4
 docx2txt 
 jq 
 unstructured
+docling 
+langchain-docling
+tabulate

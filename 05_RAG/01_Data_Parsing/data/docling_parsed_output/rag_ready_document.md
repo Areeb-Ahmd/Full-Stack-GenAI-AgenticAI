@@ -1,0 +1,166 @@
+## Complex Document for RAG Parsing Tests
+
+Synthetic  15-page  PDF  with  paragraphs,  simple  and  complex  tables,  diagrams,  scanned-form  style  image,  metadata examples, and production RAG edge cases.
+
+## Story Line
+
+Three client teams - Arka Finance, BlueLeaf Retail, and CityRide Mobility - are migrating contracts, policies, support records, and  operational  reports  into  a  single  RAG  platform.  Each  team  has  different  document  types,  access  rules,  and  parsing challenges. The RAG system must answer questions with citations while ensuring that one client never sees another clients data.
+
+This  PDF  is  intentionally  designed  to  test  document  loaders,  PDF  parsers,  OCR  workflows,  table  extraction,  chunking strategies, metadata preservation, and source citation quality.
+
+Key statement: RAG does not train the model. RAG gives the model the right context before answering.
+
+| Section               | Parsing challenge                                  | Why it matters for RAG                  |
+|-----------------------|----------------------------------------------------|-----------------------------------------|
+| Contracts             | Dense legal text, clause numbers, cross references | Need section-aware chunks and citations |
+| Tables                | Merged headers, numeric columns, footnotes         | Need row/column preservation            |
+| Images                | Architecture diagram, heatmap, scanned form        | Need OCR or multimodal extraction       |
+| Multi-tenant metadata | client_id, document_id, contract_group_id          | Need access-safe retrieval              |
+
+## 1. Business Scenario
+
+The platform team is building a document intelligence layer for contract operations. Legal users need answers such as: Which contracts  renew  automatically?  Which  agreements  have  a  60-day  termination  notice?  Which  documents  mention  data residency in India? These questions require retrieval across multiple document types and sometimes across multiple related documents of a single client.
+
+Support teams also want answers from SOPs, markdown runbooks, HTML exports, chat transcripts, and CSV logs. A single parser is not enough because the corpus contains born-digital PDFs, scanned forms, HTML, markdown, and spreadsheet-like tables.
+
+| Client            | Main document family             | Risk   | Primary users        | Typical question                            |
+|-------------------|----------------------------------|--------|----------------------|---------------------------------------------|
+| Arka Finance      | MSA, audit addendum, DPA         | High   | Legal and compliance | What audit rights exist in the DPA?         |
+| BlueLeaf Retail   | MSA, pricing, support SLA        | Medium | Procurement          | Which clause controls renewal pricing?      |
+| CityRide Mobility | Ops reports, incident logs, SOPs | Medium | Operations           | Which depot had repeated battery incidents? |
+
+![Image](D:\Coding\Full-Stack-GenAI-AgenticAI-Bootcamp\05_RAG\01_Data_Parsing\data\docling_parsed_output\rag_ready_document_artifacts\image_000000_d2826d28bd575ff41463d98693ecf481d874a970f6bdf6da67b22cb919c8c22c.png)
+
+Caption: Ownership map showing how client admins, legal teams, audit teams, document storage, vector storage, and the RAG service interact.
+
+## 2. Raw Data Inventory
+
+The ingestion team receives files from multiple sources. Some files are clean and digital; others contain scanned pages, rotated tables, missing metadata, embedded images, or formula-generated values. The inventory below intentionally includes different formats and extraction expectations.
+
+| Asset ID       | Client            | Format      | Pages/Rows   | Expected extraction          | Notes                                    |
+|----------------|-------------------|-------------|--------------|------------------------------|------------------------------------------|
+| ARK-MSA-001    | Arka Finance      | PDF         | 32 pages     | Clauses, tables, signatures  | Born-digital text with footer references |
+| ARK-DPA-002    | Arka Finance      | DOCX        | 18 pages     | Headings, lists, tables      | Track changes removed before ingestion   |
+| BLR-PRICE-00 3 | BlueLeaf Retail   | XLSX        | 12 sheets    | Rate cards, discounts        | Merged cells and formulas                |
+| BLR-SLA-004    | BlueLeaf Retail   | PDF         | 9 pages      | SLA table, escalation matrix | Table crosses page boundary              |
+| CRM-OPS-005    | CityRide Mobility | CSV         | 48,200 rows  | Incident records             | Needs column type normalization          |
+| CRM-FORM-00 6  | CityRide Mobility | Scanned PDF | 4 pages      | OCR fields, checkbox         | Low contrast and slight rotation         |
+| KB-RUN-007     | Shared            | Markdown    | 14 files     | Runbook sections             | Good for heading-based chunks            |
+| WEB-FAQ-008    | Shared            | HTML        | 23 pages     | FAQ content, links           | Needs boilerplate removal                |
+
+Parsing difficulty increases when a document combines multiple layouts: paragraph text, tables, images, and notes. Good parsers preserve structure; weak parsers flatten everything into a noisy text stream.
+
+## 3. Contract Excerpt: Dense Legal Text
+
+Clause 7.2  -  Confidential  Information.  The  Receiving  Party  shall  protect  Confidential  Information  using  at  least  the  same degree of care that it uses to protect its own confidential materials, but in no event less than reasonable care. Confidential Information includes technical documents, pricing schedules, user lists, API keys, operational procedures, security reports, incident response notes, product roadmaps, and any derived analysis prepared by the Receiving Party.
+
+Clause  7.3  -  Exclusions.  Confidential  Information  does  not  include  information  that  is  publicly  available  without  breach, independently developed without reference to the Disclosing Party material, received lawfully from a third party, or approved for release in writing. The burden of proving an exclusion remains with the Receiving Party.
+
+Clause 9.1  -  Data  Residency.  If  the  Statement  of  Work  identifies  a  specific  processing  region,  the  service  provider  shall process production records only within that region unless the client approves a transfer in writing. Disaster recovery replicas may be stored in a secondary region if encryption at rest and access logging are enabled.
+
+Clause 11.4 - Termination Assistance. Upon termination, the provider shall make client data available for export for a period of thirty days. After the export period, the provider may delete production data according to the deletion schedule unless a legal hold applies.
+
+|   Clause | Short name             | Owner            | Trigger                          | Required action                                                           | Citation hint       |
+|----------|------------------------|------------------|----------------------------------|---------------------------------------------------------------------------|---------------------|
+|      7.2 | Confidentiality        | Receiving Party  | Receipt of confidential material | Protect information with reasonable care and equivalent internal controls | Page 4, clause 7.2  |
+|      9.1 | Data residency         | Service Provider | SOW specifies region             | Process production records only in approved region                        | Page 4, clause 9.1  |
+|     11.4 | Termination assistance | Service Provider | Agreement termination            | Provide export window for 30 days                                         | Page 4, clause 11.4 |
+
+Parser note: clause numbering is important. Chunking should not remove or split clause identifiers because users often ask questions using clause numbers.
+
+## 4. Simple Table: Policy Rules
+
+The following table is intentionally simple. It should be correctly extracted by most PDF table parsers. It tests basic row and column detection, short text values, and numeric values.
+
+| Policy Area       | Rule                                                          | Owner            | Review Cycle        |
+|-------------------|---------------------------------------------------------------|------------------|---------------------|
+| Refunds           | Refund requests must be raised within 7 days of purchase.     | Customer Support | Quarterly           |
+| Data Export       | Client admins can request export in CSV or JSON format.       | Platform Ops     | Monthly             |
+| Access Review     | Privileged access must be reviewed every 30 days.             | Security         | Monthly             |
+| Incident Response | Critical incidents require acknowledgement within 30 minutes. | SRE              | After each incident |
+| Vendor Review     | High-risk vendors require annual risk assessment.             | Procurement      | Annual              |
+
+## Narrative Around the Table
+
+This  table  appears  between  paragraphs,  which  is  common  in  enterprise  documents.  A  good  parser  should  preserve  the paragraph before the table, the table content, and the paragraph after the table in the correct reading order.
+
+For RAG systems, simple tables are often converted into row-wise text chunks such as: Policy Area: Refunds; Rule: Refund requests must be raised within 7 days; Owner: Customer Support.
+
+## 15. Final Ingestion Checklist
+
+Use this checklist before sending parsed content into chunking and embeddings. It helps identify whether the data is ready for production RAG.
+
+| Checklist item   | Status to verify                                | Why it matters                       |
+|------------------|-------------------------------------------------|--------------------------------------|
+| Text extraction  | Paragraphs are readable and ordered             | Prevents noisy chunks                |
+| Table extraction | Rows, columns, headers, and footnotes preserved | Protects factual answers             |
+| Image handling   | Captions indexed and OCR done if required       | Avoids missing visual information    |
+| Metadata         | source, page, client_id, document_id captured   | Enables citations and access control |
+| Chunking         | Chunks preserve meaning and section boundaries  | Improves retrieval relevance         |
+| Access control   | Retrieval filters use authenticated client_id   | Prevents data leakage                |
+| Evaluation       | Golden questions tested with citations          | Measures real answer quality         |
+
+Summary: RAG is about knowledge access. Fine-tuning is about behavior adaptation. For document intelligence, parsing quality is the foundation. If extraction is weak, no embedding model or LLM can fully fix the missing context.
+
+End of synthetic 15-page parsing test document.
+
+## Appendix A: Complex Clause Responsibility Matrix
+
+Grouped clauses with owner/backup split inside the same responsibility cell. This page is useful for testing row grouping, merged-looking labels, split responsibility cells, and long evidence text.
+
+Parsing challenge: preserve row boundaries, nested headers, split cells, grouped labels, numeric values, and footnotes/context around the table.
+
+aru a sput resporisiwmty cenl wnere owner aru vackup are sruwrn imslue ue sarme row.
+
+| Clause Group    | Obligation                                                                          | Responsible Team   | Responsible Team       | Trigger                                 | Evidence Required                             | Risk     |
+|-----------------|-------------------------------------------------------------------------------------|--------------------|------------------------|-----------------------------------------|-----------------------------------------------|----------|
+| Data Protection | Delete cllient data after contract termination unlessretention is legally required. | Owner Backup       | Compliance             | Termination notice received             | Deletion certificate + audit log export       | High     |
+| Data Protection | Notify client about any confirmed data incident within 72 hours.                    | Owner Backup       | Security DPO           | Incident classified as confirmed breach | Incident report, timeline, notification proof | Critical |
+| Billing         | Apply annual platform fee adjustment only after renewal confirmation.               | Owner Backup       | Finance CSM            | Renewal order approved                  | Approved renewal sheet + invoice draft        | Medium   |
+| Billing         | Do not bill inactive campuses during suspension period.                             | Owner Backup       | Revenue Ops Finance    | Campus status = suspended               | ERP campus status export                      | High     |
+| uoddns          | Provide P1 response within 30 minutes during school operating hours.                | Owner Backup       | Support L2 Ops Manager | Ticket priority = P1                    | Ticket timestamps + agent assignment log      | High     |
+| uoddns          | Escalate unresolved P2 tickets after 4 business hours.                              | Owner Backup       | Support L1 Support L2  | Ticket age > 4 business hours           | Escalation log                                | Medium   |
+
+Table 1: Added as complex parsing appendix for table extraction, OCR fallback, and layout-aware RAG testing.
+
+## Appendix B: Regional Pricing and Usage Add-on Matrix
+
+Pricing table with multi-level headers, regional columns, add-on columns, billing rules, exception rows, and mixed numeric/text values.
+
+Parsing challenge: preserve row boundaries, nested headers, split cells, grouped labels, numeric values, and footnotes/context around the table.
+
+| Plan       | Student Volume          | Annual Platform Charges          | Annual Platform Charges          | Annual Platform Charges          | Usage Add-ons                    | Usage Add-ons                    | Billing Rule                |
+|------------|-------------------------|----------------------------------|----------------------------------|----------------------------------|----------------------------------|----------------------------------|-----------------------------|
+|            |                         | India Region                     | India Region                     | Intemational                     | SMS                              | WhatsApp                         |                             |
+| Starter    | 0 - 2,000 students      | Base Support                     | INR 4.5L INR 60K                 | USD 7,200                        | INR 0.18/message                 | INR 0.42/message                 | Quarterly advance           |
+| Growth     | 2,001 - 10,000 students | Base Support                     | INR 11L INR 1.4L                 | USD 18,000                       | INR 0.15/message                 | INR 0.38/message                 | 50% advance + monthly usage |
+| Enterprise | 10,001+ students        | Base Support                     | Custom Included                  | Custom                           | Negotiated                       | Negotiated                       | Signed order form required  |
+| Exception  | Government schools      | jewoudde jeqe Ajdde Aew juno3s!Q | jewoudde jeqe Ajdde Aew juno3s!Q | jewoudde jeqe Ajdde Aew juno3s!Q | No discount on pass-through cost | No discount on pass-through cost | Requires CFO approval       |
+
+Table 2: Added as complex parsing appendix for table extraction, OCR fallback, and layout-aware RAG testing.
+
+## Appendix C: Invoice Line Items with Tax Split
+
+Invoice-style line item table with item groups, quantity, rate, CGST/SGST split, totals, and summary row. Useful for invoice parsing and tax extraction tests.
+
+Parsing challenge: preserve row boundaries, nested headers, split cells, grouped labels, numeric values, and footnotes/context around the table.
+
+| Item Group     | Line Item                                              | Qty           | Rate          | Tax Split    | Tax Split    | Total         |
+|----------------|--------------------------------------------------------|---------------|---------------|--------------|--------------|---------------|
+|                |                                                        |               |               | CGST         | SGST         |               |
+| ERP Platlorm   | Annuall School360 Enterprise Subscription  12 campuses |               | INR 11,00,000 | 9%           | 9%           | INR 12,98,000 |
+|                | Parent communication add-on - estimated message pack   | 2,00,000 shsu | INR 0.38/msg  | 9%           | 9%           | INR 89,680    |
+| Implementation | Data migration + training + go-live support            | 1             | INR 2,40,000  | 9%           | 9%           | INR 2,83,200  |
+| Summary        | Subtotal and taxes                                     |               | INR 14,16,000 | INR 1,27,440 | INR 1,27,440 | INR 16,70,880 |
+
+Table 3: Added as complex parsing appendix for table extraction, OCR fallback, and layout-aware RAG testing.
+
+## Appendix D: Multimodal Document Processing Flow
+
+Diagram-style image showing how PDFs, DOCX files, scanned invoices, Excel/CSV metadata, parser/OCR, extracted text/tables/metadata, and RAG-ready chunks connect.
+
+Parsing challenge: image text, arrows, labels, and captions may not appear in normal PDF text extraction. OCR or multimodal parsing may be required.
+
+![Image](D:\Coding\Full-Stack-GenAI-AgenticAI-Bootcamp\05_RAG\01_Data_Parsing\data\docling_parsed_output\rag_ready_document_artifacts\image_000001_fdd1d4287bf388fb38c9ede3526db047de66b344f5b315050bd9a41e71a006e8.png)
+
+Added at the end for complex image parsing, OCR fallback, layout-aware extraction, and multimodal RAG testing.
