@@ -37,3 +37,8 @@ langchain_chroma
 pinecone
 langchain_pinecone
 langchain_qdrant
+
+langchain-text-splitters>=1.1.2,<2.0
+tiktoken>=0.7
+ipython>=8.0
+jupyter>=1.0
