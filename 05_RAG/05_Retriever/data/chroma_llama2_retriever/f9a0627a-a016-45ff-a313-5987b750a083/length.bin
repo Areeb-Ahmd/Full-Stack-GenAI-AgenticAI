@@ -1,5 +1,1 @@
-Hyperparameters. We trained using the AdamW optimizer (Loshchilov and Hutter, 2017), withÎ²1 =
-0.9, Î²2 = 0.95,eps = 10âˆ’5. We use a cosine learning rate schedule, with warmup of 2000 steps, and decay
-final learning rate down to 10% of the peak learning rate. We use a weight decay of0.1and gradient clipping
-of 1.0. Figure 5 (a) shows the training loss forLlama 2 with these hyperparameters.
-5ÿÿÿÿÿ
+invalid type: string "Llama 2.\nHardware and Software(Section 2.2)\nTraining Factors We used custom training libraries, Metaâ€™s Research Super Cluster, and produc-\ntion clusters for pretraining. Fine-tuning, annotation, and evaluation were also\nperformed on third-party cloud compute.\nCarbon Footprint Pretraining utilized a cumulative 3.3M GPU hours of computation on hardware\nanities (L = 50)ÿ
