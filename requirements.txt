@@ -42,3 +42,5 @@ langchain-text-splitters>=1.1.2,<2.0
 tiktoken>=0.7
 ipython>=8.0
 jupyter>=1.0
+pydantic
+email-validator
