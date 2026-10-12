@@ -45,3 +45,5 @@ jupyter>=1.0
 pydantic
 email-validator
 deepagent
+mcp[cli]
+langchain[mcp]>=1.4.0

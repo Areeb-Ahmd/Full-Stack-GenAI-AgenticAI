@@ -4,12 +4,11 @@ from pathlib import Path
 from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
-model = ChatOpenAI(
-    model="gpt-5.6",
-    reasoning_effort="none"
+model = ChatGoogleGenerativeAI(
+    model="gemini-3.1-flash-lite"
 )
 
 async def main():
@@ -73,10 +72,5 @@ async def main():
             result["messages"][-1].content
         )
         
-    
 if __name__ == "__main__":
-    asyncio.run(main())       
-            
-
-        
-    
+    asyncio.run(main())
